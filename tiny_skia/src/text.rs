@@ -225,6 +225,8 @@ fn draw(
             let physical_glyph = glyph
                 .physical((x, y), scale_factor * transformation.scale_factor());
 
+            let opacity = color.a;
+
             if let Some((buffer, placement)) = glyph_cache.allocate(
                 physical_glyph.cache_key,
                 glyph.color_opt.map(from_color).unwrap_or(color),
@@ -246,7 +248,11 @@ fn draw(
                             * transformation.scale_factor())
                         .round() as i32,
                     pixmap,
-                    &tiny_skia::PixmapPaint::default(),
+                    &tiny_skia::PixmapPaint {
+                        opacity,
+                        blend_mode: tiny_skia::BlendMode::SourceOver,
+                        quality: tiny_skia::FilterQuality::Nearest,
+                    },
                     tiny_skia::Transform::identity(),
                     clip_mask,
                 );
