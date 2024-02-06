@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Custom` variant to `command::Action`. [#2146](https://github.com/iced-rs/iced/pull/2146)
 - Mouse movement events for `MouseArea`. [#2147](https://github.com/iced-rs/iced/pull/2147)
 - Dracula, Nord, Solarized, and Gruvbox variants for `Theme`. [#2170](https://github.com/iced-rs/iced/pull/2170)
+- `From<T> where T: Into<PathBuf>` for `svg::Handle`. [#2235](https://github.com/iced-rs/iced/pull/2235)
+- `on_open` and `on_close` handlers for `PickList`. [#2174](https://github.com/iced-rs/iced/pull/2174)
 
 ### Changed
 - Enable WebGPU backend in `wgpu` by default instead of WebGL. [#2068](https://github.com/iced-rs/iced/pull/2068)
@@ -89,6 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `size_hint` not being called from `element::Map`. [#2224](https://github.com/iced-rs/iced/pull/2224)
 - `size_hint` not being called from `element::Explain`. [#2225](https://github.com/iced-rs/iced/pull/2225)
 - Slow touch scrolling for `TextEditor` widget. [#2140](https://github.com/iced-rs/iced/pull/2140)
+- `Subscription::map` using unreliable function pointer hash to identify mappers. [#2237](https://github.com/iced-rs/iced/pull/2237)
+- Missing feature flag docs for `time::every`. [#2188](https://github.com/iced-rs/iced/pull/2188)
 
 Many thanks to...
 
@@ -107,6 +111,7 @@ Many thanks to...
 - @Decodetalkers
 - @derezzedex
 - @dtzxporter
+- @fogarecious
 - @GyulyVGC
 - @hicaru
 - @ids1024
