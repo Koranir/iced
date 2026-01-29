@@ -31,6 +31,74 @@ pub mod time;
 pub mod touch;
 pub mod widget;
 pub mod window;
+pub mod style {
+    //! Style primitives for widgets
+
+    /// A widget that can be styled.
+    pub trait Styleable {
+        /// The classes that all themes must support.
+        type RequiredClass: Default;
+        /// The widget's stylable parameters.
+        type Style;
+
+        /// Additional state information that can affect style parameters.
+        type Status<'status>;
+    }
+
+    /// Apply styles to this widget.
+    pub trait Styled<'a, Theme>: Styleable
+    where
+        Theme: Catalog<Self> + ?Sized,
+        Theme::Class<'a>: StyleClass<'a, Theme, Self>,
+        Self: 'a,
+    {
+        /// Apply a style class.
+        fn style(mut self, class: impl Into<Theme::Class<'a>>) -> Self
+        where
+            Self: Sized,
+            <Theme as Catalog<Self>>::Class<'a>: 'a,
+        {
+            self.apply_style(class);
+            self
+        }
+        /// Apply a style class in place.
+        fn apply_style(&mut self, class: impl Into<Theme::Class<'a>>);
+
+        /// Apply a custom style.
+        fn custom_style(mut self, f: impl Fn(&Theme, Self::Status<'_>) -> Self::Style + 'a) -> Self
+        where
+            Self: Sized,
+        {
+            self.apply_custom_style(f);
+            self
+        }
+        /// Apply a custom style in place.
+        fn apply_custom_style(&mut self, f: impl Fn(&Theme, Self::Status<'_>) -> Self::Style + 'a) {
+            self.apply_style(<Theme::Class<'a> as StyleClass<'a, Theme, Self>>::custom(f));
+        }
+    }
+
+    /// A theme's style class for a widget.
+    pub trait StyleClass<'c, Theme, Widget>: From<Widget::RequiredClass>
+    where
+        Theme: ?Sized,
+        Widget: Styleable + ?Sized,
+    {
+        /// Create this class from a custom function
+        fn custom(f: impl Fn(&Theme, Widget::Status<'_>) -> Widget::Style + 'c) -> Self;
+    }
+
+    /// A style catalog for a theme.
+    ///
+    /// This catalog allows for a widget [`Widget`] to be themed by the implementor.
+    pub trait Catalog<Widget: Styleable + ?Sized> {
+        /// The style class of the widget. A set of default style parameters provided by the [`Theme`](`theme::Theme`).
+        type Class<'c>;
+
+        /// Retrieve a style parameter for a given style class.
+        fn style(&self, class: &Self::Class<'_>, status: Widget::Status<'_>) -> Widget::Style;
+    }
+}
 
 mod angle;
 mod background;

@@ -1173,7 +1173,10 @@ async fn run_instance<P>(
                     _ => {}
                 }
             }
-            Event::Exit => break,
+            Event::Exit => {
+                dbg!(events);
+                break;
+            }
         }
     }
 

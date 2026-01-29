@@ -1,3 +1,4 @@
+use iced::style::Styled;
 use iced::widget::{Button, Column, Container, Slider};
 use iced::widget::{
     button, center_x, center_y, checkbox, column, image, radio, rich_text, row, scrollable, slider,
@@ -144,7 +145,7 @@ impl Tour {
             self.screen.previous().is_some().then(|| {
                 padded_button("Back")
                     .on_press(Message::BackPressed)
-                    .style(button::secondary)
+                    .style(button::Class::Secondary)
             }),
             space::horizontal(),
             self.can_continue()

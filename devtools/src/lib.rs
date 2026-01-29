@@ -11,6 +11,7 @@ mod time_machine;
 
 use crate::core::border;
 use crate::core::keyboard;
+use crate::core::style::Styled;
 use crate::core::theme::{self, Theme};
 use crate::core::time::seconds;
 use crate::core::window;
@@ -424,7 +425,7 @@ where
         button(text("Cancel").center().width(Fill))
             .width(100)
             .on_press(Message::CancelSetup)
-            .style(button::danger),
+            .style(button::Class::Danger),
         space::horizontal(),
         button(
             text(match goal {
@@ -436,7 +437,7 @@ where
         )
         .width(100)
         .on_press(Message::InstallComet)
-        .style(button::success),
+        .style(button::Class::Danger),
     ];
 
     let command = container(

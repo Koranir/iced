@@ -1,5 +1,7 @@
 //! Helper functions to create pure widgets.
-use crate::button::{self, Button};
+use iced_renderer::core::style;
+
+use crate::button::Button;
 use crate::checkbox::{self, Checkbox};
 use crate::combo_box::{self, ComboBox};
 use crate::container::{self, Container};
@@ -1050,7 +1052,8 @@ pub fn button<'a, Message, Theme, Renderer>(
     content: impl Into<Element<'a, Message, Theme, Renderer>>,
 ) -> Button<'a, Message, Theme, Renderer>
 where
-    Theme: button::Catalog + 'a,
+    Theme: crate::core::style::Catalog<Button<'a, Message, Theme, Renderer>>,
+    Theme::Class<'a>: style::StyleClass<'a, Theme, Button<'a, Message, Theme, Renderer>>,
     Renderer: core::Renderer,
 {
     Button::new(content)

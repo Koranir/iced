@@ -16,11 +16,14 @@
 //!     button("Press me!").on_press(Message::ButtonPressed).into()
 //! }
 //! ```
+use iced_renderer::core::style;
+
 use crate::core::border::{self, Border};
 use crate::core::layout;
 use crate::core::mouse;
 use crate::core::overlay;
 use crate::core::renderer;
+use crate::core::style::{Catalog, Styleable};
 use crate::core::theme::palette;
 use crate::core::touch;
 use crate::core::widget::Operation;
@@ -71,7 +74,7 @@ use crate::core::{
 pub struct Button<'a, Message, Theme = crate::Theme, Renderer = crate::Renderer>
 where
     Renderer: crate::core::Renderer,
-    Theme: Catalog,
+    Theme: Catalog<Self>,
 {
     content: Element<'a, Message, Theme, Renderer>,
     on_press: Option<OnPress<'a, Message>>,
@@ -100,7 +103,8 @@ impl<Message: Clone> OnPress<'_, Message> {
 impl<'a, Message, Theme, Renderer> Button<'a, Message, Theme, Renderer>
 where
     Renderer: crate::core::Renderer,
-    Theme: Catalog,
+    Theme: Catalog<Self>,
+    Theme::Class<'a>: style::StyleClass<'a, Theme, Self>,
 {
     /// Creates a new [`Button`] with the given content.
     pub fn new(content: impl Into<Element<'a, Message, Theme, Renderer>>) -> Self {
@@ -114,7 +118,7 @@ where
             height: size.height.fluid(),
             padding: DEFAULT_PADDING,
             clip: false,
-            class: Theme::default(),
+            class: Class::default().into(),
             status: None,
         }
     }
@@ -173,24 +177,6 @@ where
         self.clip = clip;
         self
     }
-
-    /// Sets the style of the [`Button`].
-    #[must_use]
-    pub fn style(mut self, style: impl Fn(&Theme, Status) -> Style + 'a) -> Self
-    where
-        Theme::Class<'a>: From<StyleFn<'a, Theme>>,
-    {
-        self.class = (Box::new(style) as StyleFn<'a, Theme>).into();
-        self
-    }
-
-    /// Sets the style class of the [`Button`].
-    #[cfg(feature = "advanced")]
-    #[must_use]
-    pub fn class(mut self, class: impl Into<Theme::Class<'a>>) -> Self {
-        self.class = class.into();
-        self
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -203,7 +189,7 @@ impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
 where
     Message: 'a + Clone,
     Renderer: 'a + crate::core::Renderer,
-    Theme: Catalog,
+    Theme: Catalog<Self>,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<State>()
@@ -433,7 +419,7 @@ impl<'a, Message, Theme, Renderer> From<Button<'a, Message, Theme, Renderer>>
     for Element<'a, Message, Theme, Renderer>
 where
     Message: Clone + 'a,
-    Theme: Catalog + 'a,
+    Theme: Catalog<Button<'a, Message, Theme, Renderer>> + 'a,
     Renderer: crate::core::Renderer + 'a,
 {
     fn from(button: Button<'a, Message, Theme, Renderer>) -> Self {
@@ -502,228 +488,260 @@ impl Default for Style {
     }
 }
 
-/// The theme catalog of a [`Button`].
-///
-/// All themes that can be used with [`Button`]
-/// must implement this trait.
-///
-/// # Example
-/// ```no_run
-/// # use iced_widget::core::{Color, Background};
-/// # use iced_widget::button::{Catalog, Status, Style};
-/// # struct MyTheme;
-/// #[derive(Debug, Default)]
-/// pub enum ButtonClass {
-///     #[default]
-///     Primary,
-///     Secondary,
-///     Danger
-/// }
-///
-/// impl Catalog for MyTheme {
-///     type Class<'a> = ButtonClass;
-///     
-///     fn default<'a>() -> Self::Class<'a> {
-///         ButtonClass::default()
-///     }
-///     
-///
-///     fn style(&self, class: &Self::Class<'_>, status: Status) -> Style {
-///         let mut style = Style::default();
-///
-///         match class {
-///             ButtonClass::Primary => {
-///                 style.background = Some(Background::Color(Color::from_rgb(0.529, 0.808, 0.921)));
-///             },
-///             ButtonClass::Secondary => {
-///                 style.background = Some(Background::Color(Color::WHITE));
-///             },
-///             ButtonClass::Danger => {
-///                 style.background = Some(Background::Color(Color::from_rgb(0.941, 0.502, 0.502)));
-///             },
-///         }
-///
-///         style
-///     }
-/// }
-/// ```
-///
-/// Although, in order to use [`Button::style`]
-/// with `MyTheme`, [`Catalog::Class`] must implement
-/// `From<StyleFn<'_, MyTheme>>`.
-pub trait Catalog {
-    /// The item class of the [`Catalog`].
-    type Class<'a>;
-
-    /// The default class produced by the [`Catalog`].
-    fn default<'a>() -> Self::Class<'a>;
-
-    /// The [`Style`] of a class with the given status.
-    fn style(&self, class: &Self::Class<'_>, status: Status) -> Style;
+/// Style classes of a [`Button`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Class {
+    /// A primary button; denoting a main action.
+    #[default]
+    Primary,
+    /// A secondary button; denoting a complementary action.
+    Secondary,
+    /// A secondary button; denoting a complementary action.
+    Success,
+    /// A warning button; denoting a risky action.
+    Warning,
+    /// A danger button; denoting a destructive action.
+    Danger,
+    /// A text button; useful for links.
+    Text,
+    /// A button using background shades.
+    Background,
+    /// A subtle button using weak background shades.
+    Subtle,
 }
 
-/// A styling function for a [`Button`].
-pub type StyleFn<'a, Theme> = Box<dyn Fn(&Theme, Status) -> Style + 'a>;
+impl<'a, Message, Theme, Renderer> Styleable for Button<'a, Message, Theme, Renderer>
+where
+    Renderer: renderer::Renderer,
+    Theme: Catalog<Self>,
+{
+    type RequiredClass = Class;
 
-impl Catalog for Theme {
-    type Class<'a> = StyleFn<'a, Self>;
+    type Style = Style;
 
-    fn default<'a>() -> Self::Class<'a> {
-        Box::new(primary)
-    }
+    type Status<'status> = Status;
+}
 
-    fn style(&self, class: &Self::Class<'_>, status: Status) -> Style {
-        class(self, status)
+impl<'a, M, T, R> style::Styled<'a, T> for Button<'a, M, T, R>
+where
+    T: Catalog<Self>,
+    T::Class<'a>: style::StyleClass<'a, T, Self>,
+    R: renderer::Renderer,
+    Self: 'a,
+{
+    fn apply_style(&mut self, class: impl Into<T::Class<'a>>) {
+        self.class = class.into();
     }
 }
 
-/// A primary button; denoting a main action.
-pub fn primary(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.primary.base);
+/// Button styles for the default theme.
+pub mod default_theme {
+    use super::*;
 
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.primary.strong.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+    /// Style class for buttons in the default theme.
+    pub enum StyleClass<'a> {
+        /// Required classes.
+        Required(Class),
+        /// Custom styles.
+        Custom(Box<dyn Fn(&Theme, Status) -> Style + 'a>),
     }
-}
-
-/// A secondary button; denoting a complementary action.
-pub fn secondary(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.secondary.base);
-
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.secondary.strong.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+    impl<'a> From<Class> for StyleClass<'a> {
+        fn from(value: Class) -> Self {
+            Self::Required(value)
+        }
     }
-}
-
-/// A success button; denoting a good outcome.
-pub fn success(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.success.base);
-
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.success.strong.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+    impl<'a, Message, Renderer> style::StyleClass<'a, Theme, Button<'a, Message, Theme, Renderer>>
+        for StyleClass<'a>
+    where
+        Theme: Catalog<Button<'a, Message, Theme, Renderer>>,
+        Renderer: renderer::Renderer,
+    {
+        fn custom(
+            f: impl Fn(
+                &Theme,
+                <Button<'a, Message, Theme, Renderer> as Styleable>::Status<'_>,
+            ) -> <Button<'a, Message, Theme, Renderer> as Styleable>::Style
+            + 'a,
+        ) -> Self {
+            Self::Custom(Box::new(f))
+        }
     }
-}
 
-/// A warning button; denoting a risky action.
-pub fn warning(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.warning.base);
+    impl<'a, M, R> Catalog<Button<'a, M, Theme, R>> for Theme
+    where
+        R: renderer::Renderer,
+    {
+        type Class<'c> = StyleClass<'c>;
 
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.warning.strong.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+        fn style(
+            &self,
+            class: &Self::Class<'_>,
+            status: <Button<'a, M, Theme, R> as Styleable>::Status<'_>,
+        ) -> <Button<'a, M, Theme, R> as Styleable>::Style {
+            match class {
+                StyleClass::Required(class) => match class {
+                    Class::Primary => primary(self, status),
+                    Class::Secondary => secondary(self, status),
+                    Class::Success => success(self, status),
+                    Class::Warning => warning(self, status),
+                    Class::Danger => danger(self, status),
+                    Class::Text => text(self, status),
+                    Class::Background => background(self, status),
+                    Class::Subtle => subtle(self, status),
+                },
+                StyleClass::Custom(style_fn) => style_fn(self, status),
+            }
+        }
     }
-}
 
-/// A danger button; denoting a destructive action.
-pub fn danger(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.danger.base);
+    /// A primary button; denoting a main action.
+    pub fn primary(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.primary.base);
 
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.danger.strong.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.primary.strong.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
     }
-}
 
-/// A text button; useful for links.
-pub fn text(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
+    /// A secondary button; denoting a complementary action.
+    pub fn secondary(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.secondary.base);
 
-    let base = Style {
-        text_color: palette.background.base.text,
-        ..Style::default()
-    };
-
-    match status {
-        Status::Active | Status::Pressed => base,
-        Status::Hovered => Style {
-            text_color: palette.background.base.text.scale_alpha(0.8),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.secondary.strong.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
     }
-}
 
-/// A button using background shades.
-pub fn background(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.background.base);
+    /// A success button; denoting a good outcome.
+    pub fn success(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.success.base);
 
-    match status {
-        Status::Active => base,
-        Status::Pressed => Style {
-            background: Some(Background::Color(palette.background.strong.color)),
-            ..base
-        },
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.background.weak.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.success.strong.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
     }
-}
 
-/// A subtle button using weak background shades.
-pub fn subtle(theme: &Theme, status: Status) -> Style {
-    let palette = theme.extended_palette();
-    let base = styled(palette.background.weakest);
+    /// A warning button; denoting a risky action.
+    pub fn warning(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.warning.base);
 
-    match status {
-        Status::Active => base,
-        Status::Pressed => Style {
-            background: Some(Background::Color(palette.background.strong.color)),
-            ..base
-        },
-        Status::Hovered => Style {
-            background: Some(Background::Color(palette.background.weaker.color)),
-            ..base
-        },
-        Status::Disabled => disabled(base),
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.warning.strong.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
     }
-}
 
-fn styled(pair: palette::Pair) -> Style {
-    Style {
-        background: Some(Background::Color(pair.color)),
-        text_color: pair.text,
-        border: border::rounded(2),
-        ..Style::default()
+    /// A danger button; denoting a destructive action.
+    pub fn danger(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.danger.base);
+
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.danger.strong.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
     }
-}
 
-fn disabled(style: Style) -> Style {
-    Style {
-        background: style
-            .background
-            .map(|background| background.scale_alpha(0.5)),
-        text_color: style.text_color.scale_alpha(0.5),
-        ..style
+    /// A text button; useful for links.
+    pub fn text(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+
+        let base = Style {
+            text_color: palette.background.base.text,
+            ..Style::default()
+        };
+
+        match status {
+            Status::Active | Status::Pressed => base,
+            Status::Hovered => Style {
+                text_color: palette.background.base.text.scale_alpha(0.8),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
+    }
+
+    /// A button using background shades.
+    pub fn background(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.background.base);
+
+        match status {
+            Status::Active => base,
+            Status::Pressed => Style {
+                background: Some(Background::Color(palette.background.strong.color)),
+                ..base
+            },
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.background.weak.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
+    }
+
+    /// A subtle button using weak background shades.
+    pub fn subtle(theme: &Theme, status: Status) -> Style {
+        let palette = theme.extended_palette();
+        let base = styled(palette.background.weakest);
+
+        match status {
+            Status::Active => base,
+            Status::Pressed => Style {
+                background: Some(Background::Color(palette.background.strong.color)),
+                ..base
+            },
+            Status::Hovered => Style {
+                background: Some(Background::Color(palette.background.weaker.color)),
+                ..base
+            },
+            Status::Disabled => disabled(base),
+        }
+    }
+
+    fn styled(pair: palette::Pair) -> Style {
+        Style {
+            background: Some(Background::Color(pair.color)),
+            text_color: pair.text,
+            border: border::rounded(2),
+            ..Style::default()
+        }
+    }
+
+    fn disabled(style: Style) -> Style {
+        Style {
+            background: style
+                .background
+                .map(|background| background.scale_alpha(0.5)),
+            text_color: style.text_color.scale_alpha(0.5),
+            ..style
+        }
     }
 }
